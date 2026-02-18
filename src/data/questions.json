@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "question": "Какой язык программирования используется для стилизации веб-страниц?",
+    "options": ["HTML", "CSS", "JavaScript", "Python"],
+    "correctAnswer": 1
+  },
+  {
+    "id": 2,
+    "question": "Что означает аббревиатура React?",
+    "options": ["React Library", "Не аббревиатура", "Rapid Engine", "React Application"],
+    "correctAnswer": 1
+  },
+  {
+    "id": 3,
+    "question": "Какой хук используется для управления состоянием в React?",
+    "options": ["useEffect", "useContext", "useState", "useReducer"],
+    "correctAnswer": 2
+  },
+  {
+    "id": 4,
+    "question": "Что такое TypeScript?",
+    "options": ["База данных", "Надмножество JavaScript", "Фреймворк", "Библиотека UI"],
+    "correctAnswer": 1
+  },
+  {
+    "id": 5,
+    "question": "Какой тег используется для создания кнопки в HTML?",
+    "options": ["<btn>", "<button>", "<click>", "<input>"],
+    "correctAnswer": 1
+  }
+]

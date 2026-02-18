@@ -16,7 +16,10 @@ let usedQuestionIds: Record<Category, number[]> = {
   games: [],
   math: [],
   movies: [],
+  facts: [],
 };
+
+const QUESTIONS_PER_GAME = 10;
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('start');
@@ -53,8 +56,8 @@ function App() {
       (q) => !usedQuestionIds[category].includes(q.id)
     );
     
-    // Если все вопросы использованы, сбрасываем
-    if (availableQuestions.length < 10) {
+    // Если все вопросы использованы или недостаточно для 10, сбрасываем
+    if (availableQuestions.length < QUESTIONS_PER_GAME) {
       usedQuestionIds[category] = [];
     }
     
@@ -62,7 +65,7 @@ function App() {
     const shuffled = [...questions]
       .filter((q) => q.category === category && !usedQuestionIds[category].includes(q.id))
       .sort(() => Math.random() - 0.5);
-    const selectedQuestions = shuffled.slice(0, 10);
+    const selectedQuestions = shuffled.slice(0, QUESTIONS_PER_GAME);
     
     // Сохраняем ID использованных вопросов
     selectedQuestions.forEach((q) => {
@@ -116,6 +119,14 @@ function App() {
     setTimeLeft(30);
     setSelectedAnswer(null);
     setShowResult(false);
+    // Очищаем использованные вопросы при полном рестарте
+    usedQuestionIds = {
+      programming: [],
+      games: [],
+      math: [],
+      movies: [],
+      facts: [],
+    };
   };
 
   const getButtonClass = (index: number) => {
@@ -135,7 +146,7 @@ function App() {
     <div className="app">
       <div className="side-decoration left"></div>
       <div className="side-decoration right"></div>
-      
+
       <div className="game-container">
         {gameState === 'start' && (
           <div className="start-screen">
@@ -172,7 +183,7 @@ function App() {
               ⏱️ <span className={timeLeft <= 10 ? 'time-low' : ''}>{formatTime(timeLeft)}</span>
             </div>
             <div className="progress">
-              Вопрос {currentQuestionIndex + 1} из {currentQuestions.length}
+              Вопрос {currentQuestionIndex + 1} из {QUESTIONS_PER_GAME}
             </div>
             <div className="score">Очки: {score}</div>
           </div>
@@ -213,10 +224,10 @@ function App() {
               Категория: {selectedCategory && categoryNames[selectedCategory]}
             </p>
             <p className="result-score">
-              Ваш счёт: <strong>{score}</strong> из {currentQuestions.length}
+              Ваш счёт: <strong>{score}</strong> из {QUESTIONS_PER_GAME}
             </p>
             <p className="result-percentage">
-              {Math.round((score / currentQuestions.length) * 100)}% правильных ответов
+              {Math.round((score / QUESTIONS_PER_GAME) * 100)}% правильных ответов
             </p>
           </div>
           <button className="restart-btn" onClick={handleRestart}>

@@ -203,7 +203,7 @@ io.on('connection', (socket) => {
             currentRoom.currentPlayerTurn = null;
             currentRoom.buzzedPlayers = [];
           }
-        }, 10000);
+        }, 15000);
       } else {
         io.to(room.id).emit('playerBuzzed', { playerId: socket.id, playerName: player.name });
       }
@@ -230,10 +230,15 @@ io.on('connection', (socket) => {
 
     io.to(room.id).emit('playersUpdate', Array.from(room.players.values()));
 
-    // Переход к следующему вопросу через 2 секунды
-    setTimeout(() => {
-      nextQuestion(room);
-    }, 2000);
+    // НЕ переходим к следующему вопросу сразу - ждём пока игроки нажмут "Далее"
+  });
+
+  // Переход к следующему вопросу
+  socket.on('nextQuestion', () => {
+    const room = findPlayerRoom(socket.id);
+    if (!room) return;
+    
+    nextQuestion(room);
   });
 
   // Пропуск ответа (если время вышло)
@@ -245,9 +250,7 @@ io.on('connection', (socket) => {
     room.buzzedPlayers = [];
     io.to(room.id).emit('answerSkipped');
 
-    setTimeout(() => {
-      nextQuestion(room);
-    }, 2000);
+    // НЕ переходим к следующему вопросу сразу - ждём пока игроки нажмут "Далее"
   });
 
   // Выход из комнаты

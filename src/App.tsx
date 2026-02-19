@@ -22,6 +22,7 @@ let usedQuestionIds: Record<Category, number[]> = {
   math: [],
   movies: [],
   facts: [],
+  general: [],
 };
 
 function App() {
@@ -53,10 +54,11 @@ function App() {
   const [canBuzz, setCanBuzz] = useState(false);
   const [hasBuzzed, setHasBuzzed] = useState(false);
   const [buzzedPlayer, setBuzzedPlayer] = useState<Player | null>(null);
-  const [answerTimeLeft, setAnswerTimeLeft] = useState(10);
+  const [answerTimeLeft, setAnswerTimeLeft] = useState(15);
   const [currentMpQuestion, setCurrentMpQuestion] = useState<Question | null>(null);
   const [gameResults, setGameResults] = useState<Player[]>([]);
   const [error, setError] = useState('');
+  const [answerResult, setAnswerResult] = useState<{correct: boolean; correctAnswer?: number} | null>(null);
 
   const currentQuestion = currentQuestions[currentQuestionIndex];
 
@@ -117,6 +119,7 @@ function App() {
       setMpQuestionIndex(0);
       setSelectedCategoryMp(category as Category);
       setGameState('playing');
+      setMultiplayerMode('none'); // Сбрасываем, чтобы не показывался экран создания
     });
 
     socket.on('newQuestion', ({ question, questionNumber }) => {
@@ -133,19 +136,20 @@ function App() {
       const player = players.find(p => p.id === playerId);
       setBuzzedPlayer(player || { id: playerId, name: playerName, score: 0, isReady: false, isHost: false });
       setGameState('buzz');
-      setAnswerTimeLeft(10);
+      setAnswerTimeLeft(15);
     });
 
-    socket.on('answerCorrect', () => {
-      // Показываем что ответ верный
+    socket.on('answerCorrect', ({ playerId, playerName }) => {
+      setAnswerResult({ correct: true });
     });
 
-    socket.on('answerWrong', () => {
-      // Показываем что ответ неверный
+    socket.on('answerWrong', ({ playerId, playerName, correctAnswer }) => {
+      setAnswerResult({ correct: false, correctAnswer });
     });
 
     socket.on('answerSkipped', () => {
-      // Время вышло
+      // Время вышло - показываем правильный ответ
+      setAnswerResult({ correct: false });
     });
 
     socket.on('timeUpForAnswer', () => {
@@ -242,7 +246,7 @@ function App() {
     setSelectedAnswer(-1);
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestionSolo = () => {
     if (currentQuestionIndex < currentQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setTimeLeft(30);
@@ -268,6 +272,7 @@ function App() {
       math: [],
       movies: [],
       facts: [],
+      general: [],
     };
   };
 
@@ -311,14 +316,23 @@ function App() {
   };
 
   const handleStartMultiplayer = () => {
-    if (!selectedCategoryMp) return;
+    if (!selectedCategoryMp) {
+      setError('Выберите категорию');
+      return;
+    }
     
+    // Проверяем, что все игроки готовы
+    const allReady = players.every((p) => p.isReady);
+    if (!allReady) {
+      setError('Не все игроки готовы!');
+      return;
+    }
+
     const categoryQuestions = questions
       .filter((q) => q.category === selectedCategoryMp)
       .sort(() => Math.random() - 0.5)
       .slice(0, QUESTIONS_PER_GAME);
-    
-    setMpQuestions(categoryQuestions);
+
     socket?.emit('startGame', categoryQuestions);
   };
 
@@ -330,12 +344,20 @@ function App() {
 
   const handleSubmitAnswer = (answerIndex: number) => {
     socket?.emit('submitAnswer', answerIndex);
-    setGameState('playing');
+    // Не сбрасываем gameState, ждём показа результата
   };
 
   const handleSkipAnswer = () => {
     socket?.emit('skipAnswer');
+  };
+
+  const handleNextQuestion = () => {
+    setAnswerResult(null);
     setGameState('playing');
+    setCanBuzz(true);
+    setHasBuzzed(false);
+    setBuzzedPlayer(null);
+    socket?.emit('nextQuestion');
   };
 
   const handleLeaveRoom = () => {
@@ -417,13 +439,28 @@ function App() {
                 </div>
 
                 {selectedCategoryMp && (
-                  <button 
-                    className="start-btn" 
-                    onClick={handleStartMultiplayer}
-                    disabled={players.length < 2}
-                  >
-                    🎮 Начать игру
-                  </button>
+                  <div>
+                    <p className="ready-status" style={{ 
+                      color: players.every(p => p.isReady) ? '#4ecdc4' : '#ff6b6b',
+                      marginBottom: '15px',
+                      textAlign: 'center'
+                    }}>
+                      {players.every(p => p.isReady) 
+                        ? `✓ Все готовы (${players.length}/${players.length})` 
+                        : `○ Ждём игроков (${players.filter(p => p.isReady).length}/${players.length})`}
+                    </p>
+                    <button
+                      className="start-btn"
+                      onClick={handleStartMultiplayer}
+                      disabled={players.length < 2 || !players.every(p => p.isReady)}
+                      style={{ 
+                        opacity: players.length < 2 || !players.every(p => p.isReady) ? 0.5 : 1,
+                        cursor: players.length < 2 || !players.every(p => p.isReady) ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      🎮 Начать игру
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -597,7 +634,7 @@ function App() {
             )}
 
             {/* Варианты ответа для игрока который нажал */}
-            {buzzedPlayer?.id === socket?.id && currentMpQuestion && (
+            {buzzedPlayer?.id === socket?.id && currentMpQuestion && !answerResult && (
               <div className="answers">
                 {currentMpQuestion.options.map((option, index) => (
                   <button
@@ -610,6 +647,27 @@ function App() {
                 ))}
                 <button className="skip-btn" onClick={handleSkipAnswer}>
                   ⏭️ Пропустить
+                </button>
+              </div>
+            )}
+
+            {/* Показ результата ответа для всех */}
+            {answerResult && (
+              <div className="answer-result">
+                <div className={`result-message ${answerResult.correct ? 'correct' : 'wrong'}`}>
+                  {answerResult.correct ? (
+                    <span>✅ Правильно!</span>
+                  ) : (
+                    <span>❌ Неправильно!</span>
+                  )}
+                </div>
+                {currentMpQuestion && !answerResult.correct && (
+                  <div className="correct-answer">
+                    Правильный ответ: <strong>{currentMpQuestion.options[answerResult.correctAnswer!]}</strong>
+                  </div>
+                )}
+                <button className="next-btn" onClick={handleNextQuestion}>
+                  ➡️ Далее
                 </button>
               </div>
             )}
@@ -664,6 +722,14 @@ function App() {
               </div>
             </div>
             <div className="result-buttons">
+              {isHost && (
+                <button className="restart-btn" onClick={() => {
+                  setSelectedCategoryMp(null);
+                  setGameState('lobby');
+                }}>
+          🔄 Выбрать другую тему
+        </button>
+              )}
               <button className="restart-btn" onClick={handleBackToMenu}>
                 🏠 В главное меню
               </button>
@@ -802,7 +868,7 @@ function App() {
             </div>
 
             {showResult && (
-              <button className="next-btn" onClick={handleNextQuestion}>
+              <button className="next-btn" onClick={handleNextQuestionSolo}>
                 {currentQuestionIndex < currentQuestions.length - 1 ? '➡️ Далее' : '🏆 Результаты'}
               </button>
             )}

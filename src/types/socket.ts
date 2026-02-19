@@ -11,7 +11,7 @@ export interface Question {
   question: string;
   options: string[];
   correctAnswer: number;
-  category: 'programming' | 'games' | 'math' | 'movies' | 'facts';
+  category: 'programming' | 'games' | 'math' | 'movies' | 'facts' | 'general';
 }
 
 export type GameState = 'menu' | 'solo' | 'lobby' | 'playing' | 'finished';

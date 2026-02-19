@@ -802,6 +802,48 @@ body {
   font-size: 1.2rem;
 }
 
+/* Answer Result */
+.answer-result {
+  text-align: center;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  margin: 20px 0;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-message {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 15px;
+}
+
+.result-message.correct {
+  background: rgba(78, 205, 196, 0.2);
+  border: 2px solid #4ecdc4;
+  color: #4ecdc4;
+}
+
+.result-message.wrong {
+  background: rgba(255, 107, 107, 0.2);
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+}
+
+.correct-answer {
+  font-size: 1.2rem;
+  color: #a0a0a0;
+  margin-bottom: 25px;
+}
+
+.correct-answer strong {
+  color: #4ecdc4;
+  font-size: 1.4rem;
+}
+
 /* Final Standings */
 .final-standings {
   margin-bottom: 20px;

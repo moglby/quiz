@@ -7,8 +7,13 @@ import {
   categoryNames,
   categoryIcons,
 } from './data/questions';
+import { useSocket } from './hooks/useSocket';
+import type { Player } from './types/socket';
 
-type GameState = 'start' | 'category' | 'playing' | 'result';
+type GameState = 'menu' | 'category' | 'solo' | 'lobby' | 'playing' | 'buzz' | 'finished';
+type MultiplayerMode = 'none' | 'menu' | 'create' | 'join';
+
+const QUESTIONS_PER_GAME = 10;
 
 // Хранилище использованных вопросов для каждой категории
 let usedQuestionIds: Record<Category, number[]> = {
@@ -19,10 +24,14 @@ let usedQuestionIds: Record<Category, number[]> = {
   facts: [],
 };
 
-const QUESTIONS_PER_GAME = 10;
-
 function App() {
-  const [gameState, setGameState] = useState<GameState>('start');
+  const { socket, isConnected } = useSocket();
+  
+  // Состояния игры
+  const [gameState, setGameState] = useState<GameState>('menu');
+  const [multiplayerMode, setMultiplayerMode] = useState<MultiplayerMode>('none');
+  
+  // Состояния для соло
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [currentQuestions, setCurrentQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -31,53 +40,187 @@ function App() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
 
+  // Состояния для мультиплеера
+  const [playerName, setPlayerName] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isReady, setIsReady] = useState(false);
+  const [isHost, setIsHost] = useState(false);
+  const [selectedCategoryMp, setSelectedCategoryMp] = useState<Category | null>(null);
+  const [_mpQuestions, setMpQuestions] = useState<Question[]>([]);
+  const [mpQuestionIndex, setMpQuestionIndex] = useState(0);
+  const [canBuzz, setCanBuzz] = useState(false);
+  const [hasBuzzed, setHasBuzzed] = useState(false);
+  const [buzzedPlayer, setBuzzedPlayer] = useState<Player | null>(null);
+  const [answerTimeLeft, setAnswerTimeLeft] = useState(10);
+  const [currentMpQuestion, setCurrentMpQuestion] = useState<Question | null>(null);
+  const [gameResults, setGameResults] = useState<Player[]>([]);
+  const [error, setError] = useState('');
+
   const currentQuestion = currentQuestions[currentQuestionIndex];
 
+  // Соло игра - таймер
   useEffect(() => {
-    if (gameState === 'playing' && !showResult && timeLeft > 0) {
+    if (gameState === 'solo' && !showResult && timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !showResult) {
+    } else if (timeLeft === 0 && !showResult && gameState === 'solo') {
       handleTimeUp();
     }
   }, [timeLeft, gameState, showResult]);
 
-  const handleStart = () => {
+  // Мультиплеер - таймер на ответ
+  useEffect(() => {
+    if (gameState === 'buzz' && buzzedPlayer?.id === socket?.id && answerTimeLeft > 0) {
+      const timer = setTimeout(() => setAnswerTimeLeft(answerTimeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (answerTimeLeft === 0 && gameState === 'buzz' && buzzedPlayer?.id === socket?.id) {
+      socket?.emit('skipAnswer');
+    }
+  }, [answerTimeLeft, gameState, buzzedPlayer, socket]);
+
+  // Подписка на события сокета
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('roomCreated', ({ roomCode, player }) => {
+      setRoomCode(roomCode);
+      setIsHost(player.isHost);
+      setPlayers([player]);
+      setGameState('lobby');
+      setMultiplayerMode('create');
+    });
+
+    socket.on('roomJoined', ({ roomCode, player }) => {
+      setRoomCode(roomCode);
+      setIsHost(player.isHost);
+      setPlayers([player]);
+      setGameState('lobby');
+      setMultiplayerMode('join');
+    });
+
+    socket.on('playersUpdate', (updatedPlayers) => {
+      setPlayers(updatedPlayers);
+    });
+
+    socket.on('allPlayersReady', () => {
+      // Все готовы, можно начинать
+    });
+
+    socket.on('categorySelected', (category) => {
+      setSelectedCategoryMp(category as Category);
+    });
+
+    socket.on('gameStarted', ({ questions, category }) => {
+      setMpQuestions(questions as unknown as Question[]);
+      setMpQuestionIndex(0);
+      setSelectedCategoryMp(category as Category);
+      setGameState('playing');
+    });
+
+    socket.on('newQuestion', ({ question, questionNumber }) => {
+      setCurrentMpQuestion(question as unknown as Question);
+      setMpQuestionIndex(questionNumber - 1);
+      setCanBuzz(true);
+      setHasBuzzed(false);
+      setBuzzedPlayer(null);
+      setGameState('playing');
+    });
+
+    socket.on('playerBuzzed', ({ playerId, playerName }) => {
+      setCanBuzz(false);
+      const player = players.find(p => p.id === playerId);
+      setBuzzedPlayer(player || { id: playerId, name: playerName, score: 0, isReady: false, isHost: false });
+      setGameState('buzz');
+      setAnswerTimeLeft(10);
+    });
+
+    socket.on('answerCorrect', () => {
+      // Показываем что ответ верный
+    });
+
+    socket.on('answerWrong', () => {
+      // Показываем что ответ неверный
+    });
+
+    socket.on('answerSkipped', () => {
+      // Время вышло
+    });
+
+    socket.on('timeUpForAnswer', () => {
+      setGameState('playing');
+      setCanBuzz(false);
+      setBuzzedPlayer(null);
+    });
+
+    socket.on('gameOver', ({ results }) => {
+      setGameResults(results);
+      setGameState('finished');
+    });
+
+    socket.on('newHost', (playerId) => {
+      if (playerId === socket.id) {
+        setIsHost(true);
+      }
+    });
+
+    socket.on('error', (message) => {
+      setError(message);
+      setTimeout(() => setError(''), 3000);
+    });
+
+    return () => {
+      socket.off('roomCreated');
+      socket.off('roomJoined');
+      socket.off('playersUpdate');
+      socket.off('allPlayersReady');
+      socket.off('categorySelected');
+      socket.off('gameStarted');
+      socket.off('newQuestion');
+      socket.off('playerBuzzed');
+      socket.off('answerCorrect');
+      socket.off('answerWrong');
+      socket.off('answerSkipped');
+      socket.off('timeUpForAnswer');
+      socket.off('gameOver');
+      socket.off('newHost');
+      socket.off('error');
+    };
+  }, [socket, players]);
+
+  // Обработчики для соло игры
+  const handleStartSolo = () => {
     setGameState('category');
   };
 
-  const handleCategorySelect = (category: Category) => {
+  const handleCategorySelectSolo = (category: Category) => {
     setSelectedCategory(category);
-    
-    // Получаем все вопросы категории
+
     const categoryQuestions = questions.filter((q) => q.category === category);
-    // Фильтруем неиспользованные вопросы
     const availableQuestions = categoryQuestions.filter(
       (q) => !usedQuestionIds[category].includes(q.id)
     );
-    
-    // Если все вопросы использованы или недостаточно для 10, сбрасываем
+
     if (availableQuestions.length < QUESTIONS_PER_GAME) {
       usedQuestionIds[category] = [];
     }
-    
-    // Перемешиваем и берём 10 вопросов
+
     const shuffled = [...questions]
       .filter((q) => q.category === category && !usedQuestionIds[category].includes(q.id))
       .sort(() => Math.random() - 0.5);
     const selectedQuestions = shuffled.slice(0, QUESTIONS_PER_GAME);
-    
-    // Сохраняем ID использованных вопросов
+
     selectedQuestions.forEach((q) => {
       if (!usedQuestionIds[category].includes(q.id)) {
         usedQuestionIds[category].push(q.id);
       }
     });
-    
+
     setCurrentQuestions(selectedQuestions);
     setCurrentQuestionIndex(0);
     setScore(0);
-    setGameState('playing');
+    setGameState('solo');
     setTimeLeft(30);
     setSelectedAnswer(null);
     setShowResult(false);
@@ -106,12 +249,12 @@ function App() {
       setSelectedAnswer(null);
       setShowResult(false);
     } else {
-      setGameState('result');
+      setGameState('finished');
     }
   };
 
-  const handleRestart = () => {
-    setGameState('start');
+  const handleRestartSolo = () => {
+    setGameState('menu');
     setSelectedCategory(null);
     setCurrentQuestions([]);
     setCurrentQuestionIndex(0);
@@ -119,7 +262,6 @@ function App() {
     setTimeLeft(30);
     setSelectedAnswer(null);
     setShowResult(false);
-    // Очищаем использованные вопросы при полном рестарте
     usedQuestionIds = {
       programming: [],
       games: [],
@@ -127,6 +269,90 @@ function App() {
       movies: [],
       facts: [],
     };
+  };
+
+  // Обработчики для мультиплеера
+  const handleCreateRoom = () => {
+    if (!playerName.trim()) {
+      setError('Введите имя');
+      return;
+    }
+    if (!socket) {
+      setError('Ошибка подключения к серверу');
+      return;
+    }
+    if (!isConnected) {
+      setError('Нет подключения к серверу. Проверьте, запущен ли сервер.');
+      return;
+    }
+    socket.emit('createRoom', playerName.trim());
+  };
+
+  const handleJoinRoom = () => {
+    if (!playerName.trim()) {
+      setError('Введите имя');
+      return;
+    }
+    if (!joinCode.trim()) {
+      setError('Введите код комнаты');
+      return;
+    }
+    socket?.emit('joinRoom', { roomCode: joinCode.trim(), playerName: playerName.trim() });
+  };
+
+  const handleToggleReady = () => {
+    socket?.emit('toggleReady');
+    setIsReady(!isReady);
+  };
+
+  const handleSelectCategory = (category: Category) => {
+    setSelectedCategoryMp(category);
+    socket?.emit('selectCategory', category);
+  };
+
+  const handleStartMultiplayer = () => {
+    if (!selectedCategoryMp) return;
+    
+    const categoryQuestions = questions
+      .filter((q) => q.category === selectedCategoryMp)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, QUESTIONS_PER_GAME);
+    
+    setMpQuestions(categoryQuestions);
+    socket?.emit('startGame', categoryQuestions);
+  };
+
+  const handleBuzz = () => {
+    if (!canBuzz || hasBuzzed) return;
+    setHasBuzzed(true);
+    socket?.emit('buzz');
+  };
+
+  const handleSubmitAnswer = (answerIndex: number) => {
+    socket?.emit('submitAnswer', answerIndex);
+    setGameState('playing');
+  };
+
+  const handleSkipAnswer = () => {
+    socket?.emit('skipAnswer');
+    setGameState('playing');
+  };
+
+  const handleLeaveRoom = () => {
+    socket?.emit('leaveRoom');
+    setGameState('menu');
+    setMultiplayerMode('none');
+    setPlayers([]);
+    setIsReady(false);
+    setIsHost(false);
+    setRoomCode('');
+    setSelectedCategoryMp(null);
+  };
+
+  const handleBackToMenu = () => {
+    setGameState('menu');
+    setMultiplayerMode('none');
+    handleLeaveRoom();
   };
 
   const getButtonClass = (index: number) => {
@@ -142,102 +368,451 @@ function App() {
     return seconds.toString().padStart(2, '0');
   };
 
-  return (
-    <div className="app">
-      <div className="side-decoration left"></div>
-      <div className="side-decoration right"></div>
+  // Рендер лобби - ПРОВЕРЯЕМ ПЕРЕД multiplayerMode
+  if (gameState === 'lobby') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
 
-      <div className="game-container">
-        {gameState === 'start' && (
+        <div className="game-container">
+          <div className="lobby-screen">
+            <div className="lobby-header">
+              <h2>🏠 Лобби</h2>
+              <div className="room-code">
+                Код комнаты: <strong>{roomCode}</strong>
+              </div>
+            </div>
+
+            <div className="players-list">
+              <h3>Игроки ({players.length}/4)</h3>
+              {players.map((player) => (
+                <div key={player.id} className={`player-item ${player.isHost ? 'host' : ''}`}>
+                  <span className="player-name">
+                    {player.isHost && '👑 '}
+                    {player.name}
+                    {player.id === socket?.id && ' (Вы)'}
+                  </span>
+                  <span className={`player-status ${player.isReady ? 'ready' : ''}`}>
+                    {player.isReady ? '✓ Готов' : '○ Не готов'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {isHost ? (
+              <div className="host-controls">
+                <h3>Выберите категорию:</h3>
+                <div className="categories">
+                  {(Object.keys(categoryNames) as Category[]).map((category) => (
+                    <button
+                      key={category}
+                      className={`category-btn ${selectedCategoryMp === category ? 'selected' : ''}`}
+                      onClick={() => handleSelectCategory(category)}
+                    >
+                      <span className="category-icon">{categoryIcons[category]}</span>
+                      <span>{categoryNames[category]}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {selectedCategoryMp && (
+                  <button 
+                    className="start-btn" 
+                    onClick={handleStartMultiplayer}
+                    disabled={players.length < 2}
+                  >
+                    🎮 Начать игру
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="waiting-message">Ожидайте выбора категории хостом...</p>
+            )}
+
+            <div className="ready-section">
+              <button 
+                className={`ready-btn ${isReady ? 'ready' : ''}`}
+                onClick={handleToggleReady}
+              >
+                {isReady ? '✓ Вы готовы' : '○ Я готов'}
+              </button>
+              
+              <button className="leave-btn" onClick={handleLeaveRoom}>
+                🚪 Покинуть комнату
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер выбора режима мультиплеера (создать или подключиться)
+  if (multiplayerMode === 'menu') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="multiplayer-screen">
+            <h2>👥 Игра с друзьями</h2>
+            <p style={{ color: '#a0a0a0', marginBottom: '30px' }}>
+              Создай комнату или подключись к существующей
+            </p>
+
+            <div className="mp-buttons">
+              <button className="start-btn" onClick={() => setMultiplayerMode('create')}>
+                🏠 Создать комнату
+              </button>
+
+              <button className="start-btn" onClick={() => setMultiplayerMode('join')}>
+                🚪 Подключиться к комнате
+              </button>
+
+              <button className="back-btn" onClick={() => setMultiplayerMode('none')}>
+                ⬅️ Назад в меню
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер создания/подключения к комнате
+  if (multiplayerMode === 'create' || multiplayerMode === 'join') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="multiplayer-screen">
+            <h2>{multiplayerMode === 'create' ? 'Создание комнаты' : 'Подключение к комнате'}</h2>
+            
+            <div className={`connection-status ${isConnected ? 'connected' : ''}`}>
+              {isConnected ? '🟢 Подключено' : '🔴 Нет подключения'}
+            </div>
+
+            <div className="input-group">
+              <label>Ваше имя:</label>
+              <input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Введите имя"
+                maxLength={20}
+              />
+            </div>
+
+            {multiplayerMode === 'join' && (
+              <div className="input-group">
+                <label>Код комнаты:</label>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  placeholder="123456"
+                  maxLength={6}
+                />
+              </div>
+            )}
+
+            {error && <div className="error-message">{error}</div>}
+
+            <div className="mp-buttons">
+              {multiplayerMode === 'create' ? (
+                <button className="start-btn" onClick={handleCreateRoom} disabled={!isConnected}>
+                  🏠 Создать комнату
+                </button>
+              ) : (
+                <button className="start-btn" onClick={handleJoinRoom} disabled={!isConnected}>
+                  🚪 Войти в комнату
+                </button>
+              )}
+
+              <button className="back-btn" onClick={() => {
+                setMultiplayerMode('none');
+                setError('');
+              }}>
+                ⬅️ Назад
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер игры (мультиплеер)
+  if (gameState === 'playing' || gameState === 'buzz') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="mp-game-screen">
+            <div className="game-header">
+              <div className="question-counter">
+                Вопрос {mpQuestionIndex + 1} из {QUESTIONS_PER_GAME}
+              </div>
+              <div className="category-badge-mp">
+                {categoryIcons[selectedCategoryMp!]} {selectedCategoryMp && categoryNames[selectedCategoryMp]}
+              </div>
+            </div>
+
+            {currentMpQuestion && (
+              <div className="question-container">
+                <h3 className="question-text">{currentMpQuestion.question}</h3>
+              </div>
+            )}
+
+            {/* Кнопка для нажатия (buzz-in) */}
+            {gameState === 'playing' && !buzzedPlayer && (
+              <button 
+                className={`buzz-btn ${canBuzz ? 'active' : ''}`}
+                onClick={handleBuzz}
+                disabled={!canBuzz}
+              >
+                🖐 Нажми первым!
+              </button>
+            )}
+
+            {/* Игрок нажал - показывает кто */}
+            {buzzedPlayer && (
+              <div className="buzzed-info">
+                <div className="buzzed-player">
+                  🎯 {buzzedPlayer.name} отвечает!
+                </div>
+                
+                {buzzedPlayer.id === socket?.id && (
+                  <div className="answer-timer">
+                    Время на ответ: <span className={answerTimeLeft <= 3 ? 'time-low' : ''}>{answerTimeLeft}с</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Варианты ответа для игрока который нажал */}
+            {buzzedPlayer?.id === socket?.id && currentMpQuestion && (
+              <div className="answers">
+                {currentMpQuestion.options.map((option, index) => (
+                  <button
+                    key={index}
+                    className="answer-btn"
+                    onClick={() => handleSubmitAnswer(index)}
+                  >
+                    {option}
+                  </button>
+                ))}
+                <button className="skip-btn" onClick={handleSkipAnswer}>
+                  ⏭️ Пропустить
+                </button>
+              </div>
+            )}
+
+            {/* Список игроков с очками */}
+            <div className="players-scoreboard">
+              <h4>Счёт:</h4>
+              {players.sort((a, b) => b.score - a.score).map((player, index) => (
+                <div key={player.id} className={`scoreboard-item ${player.id === socket?.id ? 'current' : ''}`}>
+                  <span className="score-rank">{index + 1}.</span>
+                  <span className="score-name">
+                    {player.isHost && '👑 '}
+                    {player.name}
+                    {player.id === socket?.id && ' (Вы)'}
+                  </span>
+                  <span className="score-value">{player.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер результатов
+  if (gameState === 'finished' && multiplayerMode !== 'none') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="result-screen">
+            <h2>🏆 Игра окончена!</h2>
+            <div className="result-content">
+              <div className="final-standings">
+                <h3>Итоговая таблица:</h3>
+                {gameResults.map((player, index) => (
+                  <div key={player.id} className={`standing-item ${player.id === socket?.id ? 'current' : ''} rank-${index + 1}`}>
+                    <span className="standing-rank">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </span>
+                    <span className="standing-name">
+                      {player.isHost && '👑 '}
+                      {player.name}
+                      {player.id === socket?.id && ' (Вы)'}
+                    </span>
+                    <span className="standing-score">{player.score} оч.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="result-buttons">
+              <button className="restart-btn" onClick={handleBackToMenu}>
+                🏠 В главное меню
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер главного меню
+  if (gameState === 'menu') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
           <div className="start-screen">
             <h1>🎯 Викторина</h1>
             <p>Проверь свои знания!</p>
-            <button className="start-btn" onClick={handleStart}>
-              🚀 Старт
-            </button>
-          </div>
-        )}
 
-        {gameState === 'category' && (
-        <div className="category-screen">
-          <h2>Выберите категорию</h2>
-          <div className="categories">
-            {(Object.keys(categoryNames) as Category[]).map((category) => (
-              <button
-                key={category}
-                className="category-btn"
-                onClick={() => handleCategorySelect(category)}
-              >
-                <span className="category-icon">{categoryIcons[category]}</span>
-                <span>{categoryNames[category]}</span>
+            <div className="menu-buttons">
+              <button className="start-btn" onClick={handleStartSolo}>
+                🎮 Одиночная игра
               </button>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {gameState === 'playing' && currentQuestion && (
-        <div className="game-screen">
-          <div className="game-header">
-            <div className="timer">
-              ⏱️ <span className={timeLeft <= 10 ? 'time-low' : ''}>{formatTime(timeLeft)}</span>
-            </div>
-            <div className="progress">
-              Вопрос {currentQuestionIndex + 1} из {QUESTIONS_PER_GAME}
-            </div>
-            <div className="score">Очки: {score}</div>
-          </div>
-
-          <div className="question-container">
-            <span className="category-badge">
-              {categoryIcons[selectedCategory!]} {categoryNames[selectedCategory!]}
-            </span>
-            <h3 className="question-text">{currentQuestion.question}</h3>
-          </div>
-
-          <div className="answers">
-            {currentQuestion.options.map((option, index) => (
-              <button
-                key={index}
-                className={getButtonClass(index)}
-                onClick={() => handleAnswerSelect(index)}
-                disabled={showResult}
-              >
-                {option}
+              <button className="start-btn multiplayer-btn" onClick={() => setMultiplayerMode('menu')}>
+                👥 Игра с друзьями
               </button>
-            ))}
+            </div>
           </div>
-
-          {showResult && (
-            <button className="next-btn" onClick={handleNextQuestion}>
-              {currentQuestionIndex < currentQuestions.length - 1 ? '➡️ Далее' : '🏆 Результаты'}
-            </button>
-          )}
         </div>
-      )}
-
-      {gameState === 'result' && (
-        <div className="result-screen">
-          <h2>🏆 Результаты</h2>
-          <div className="result-content">
-            <p className="result-category">
-              Категория: {selectedCategory && categoryNames[selectedCategory]}
-            </p>
-            <p className="result-score">
-              Ваш счёт: <strong>{score}</strong> из {QUESTIONS_PER_GAME}
-            </p>
-            <p className="result-percentage">
-              {Math.round((score / QUESTIONS_PER_GAME) * 100)}% правильных ответов
-            </p>
-          </div>
-          <button className="restart-btn" onClick={handleRestart}>
-            🔄 Играть снова
-          </button>
-        </div>
-      )}
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Рендер выбора категории для соло
+  if (gameState === 'category') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="category-screen">
+            <h2>Выберите категорию</h2>
+            <div className="categories">
+              {(Object.keys(categoryNames) as Category[]).map((category) => (
+                <button
+                  key={category}
+                  className="category-btn"
+                  onClick={() => handleCategorySelectSolo(category)}
+                >
+                  <span className="category-icon">{categoryIcons[category]}</span>
+                  <span>{categoryNames[category]}</span>
+                </button>
+              ))}
+            </div>
+            <button className="back-btn" style={{ marginTop: '20px' }} onClick={() => setGameState('menu')}>
+              ⬅️ Назад
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер результатов соло
+  if (gameState === 'finished') {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="result-screen">
+            <h2>🏆 Результаты</h2>
+            <div className="result-content">
+              <p className="result-category">
+                Категория: {selectedCategory && categoryNames[selectedCategory]}
+              </p>
+              <p className="result-score">
+                Ваш счёт: <strong>{score}</strong> из {QUESTIONS_PER_GAME}
+              </p>
+              <p className="result-percentage">
+                {Math.round((score / QUESTIONS_PER_GAME) * 100)}% правильных ответов
+              </p>
+            </div>
+            <button className="restart-btn" onClick={handleRestartSolo}>
+              🔄 В главное меню
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Рендер одиночной игры
+  if (gameState === 'solo' && currentQuestion) {
+    return (
+      <div className="app">
+        <div className="side-decoration left"></div>
+        <div className="side-decoration right"></div>
+
+        <div className="game-container">
+          <div className="game-screen">
+            <div className="game-header">
+              <div className="timer">
+                ⏱️ <span className={timeLeft <= 10 ? 'time-low' : ''}>{formatTime(timeLeft)}</span>
+              </div>
+              <div className="progress">
+                Вопрос {currentQuestionIndex + 1} из {QUESTIONS_PER_GAME}
+              </div>
+              <div className="score">Очки: {score}</div>
+            </div>
+
+            <div className="question-container">
+              <span className="category-badge">
+                {categoryIcons[selectedCategory!]} {categoryNames[selectedCategory!]}
+              </span>
+              <h3 className="question-text">{currentQuestion.question}</h3>
+            </div>
+
+            <div className="answers">
+              {currentQuestion.options.map((option, index) => (
+                <button
+                  key={index}
+                  className={getButtonClass(index)}
+                  onClick={() => handleAnswerSelect(index)}
+                  disabled={showResult}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            {showResult && (
+              <button className="next-btn" onClick={handleNextQuestion}>
+                {currentQuestionIndex < currentQuestions.length - 1 ? '➡️ Далее' : '🏆 Результаты'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default App;

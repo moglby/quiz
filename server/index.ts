@@ -230,7 +230,10 @@ io.on('connection', (socket) => {
 
     io.to(room.id).emit('playersUpdate', Array.from(room.players.values()));
 
-    // НЕ переходим к следующему вопросу сразу - ждём пока игроки нажмут "Далее"
+    // Автоматический переход к следующему вопросу через 4 секунды
+    setTimeout(() => {
+      nextQuestion(room);
+    }, 4000);
   });
 
   // Переход к следующему вопросу
@@ -250,7 +253,10 @@ io.on('connection', (socket) => {
     room.buzzedPlayers = [];
     io.to(room.id).emit('answerSkipped');
 
-    // НЕ переходим к следующему вопросу сразу - ждём пока игроки нажмут "Далее"
+    // Автоматический переход к следующему вопросу через 4 секунды
+    setTimeout(() => {
+      nextQuestion(room);
+    }, 4000);
   });
 
   // Выход из комнаты

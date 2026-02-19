@@ -59,6 +59,8 @@ function App() {
   const [gameResults, setGameResults] = useState<Player[]>([]);
   const [error, setError] = useState('');
   const [answerResult, setAnswerResult] = useState<{correct: boolean; correctAnswer?: number} | null>(null);
+  const [isBuzzingBlocked, setIsBuzzingBlocked] = useState(false);
+  const [autoNextTimer, setAutoNextTimer] = useState(4); // Таймер до следующего вопроса (4 секунды)
 
   const currentQuestion = currentQuestions[currentQuestionIndex];
 
@@ -125,9 +127,11 @@ function App() {
     socket.on('newQuestion', ({ question, questionNumber }) => {
       setCurrentMpQuestion(question as unknown as Question);
       setMpQuestionIndex(questionNumber - 1);
-      setCanBuzz(true);
+      setCanBuzz(false);
       setHasBuzzed(false);
       setBuzzedPlayer(null);
+      setAnswerResult(null); // Сбрасываем результат
+      setAutoNextTimer(4); // Сбрасываем таймер
       setGameState('playing');
     });
 
@@ -141,15 +145,18 @@ function App() {
 
     socket.on('answerCorrect', ({ playerId, playerName }) => {
       setAnswerResult({ correct: true });
+      setAutoNextTimer(4);
     });
 
     socket.on('answerWrong', ({ playerId, playerName, correctAnswer }) => {
       setAnswerResult({ correct: false, correctAnswer });
+      setAutoNextTimer(4);
     });
 
     socket.on('answerSkipped', () => {
       // Время вышло - показываем правильный ответ
       setAnswerResult({ correct: false });
+      setAutoNextTimer(4);
     });
 
     socket.on('timeUpForAnswer', () => {
@@ -354,11 +361,35 @@ function App() {
   const handleNextQuestion = () => {
     setAnswerResult(null);
     setGameState('playing');
-    setCanBuzz(true);
+    setCanBuzz(false);
     setHasBuzzed(false);
     setBuzzedPlayer(null);
+    setIsBuzzingBlocked(true); // Блокируем нажатие кнопки
     socket?.emit('nextQuestion');
   };
+
+  // Разблокировка кнопки после появления вопроса
+  useEffect(() => {
+    if (gameState === 'playing' && !buzzedPlayer && !answerResult) {
+      setIsBuzzingBlocked(true);
+      setCanBuzz(false);
+      const timer = setTimeout(() => {
+        setIsBuzzingBlocked(false);
+        setCanBuzz(true);
+      }, 1500); // 1.5 секунды задержка перед возможностью нажать
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, buzzedPlayer, answerResult, mpQuestionIndex]);
+
+  // Таймер автоматического перехода к следующему вопросу
+  useEffect(() => {
+    if (answerResult && autoNextTimer > 0) {
+      const timer = setTimeout(() => setAutoNextTimer(autoNextTimer - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (answerResult && autoNextTimer === 0) {
+      handleNextQuestion();
+    }
+  }, [answerResult, autoNextTimer]);
 
   const handleLeaveRoom = () => {
     socket?.emit('leaveRoom');
@@ -609,12 +640,12 @@ function App() {
 
             {/* Кнопка для нажатия (buzz-in) */}
             {gameState === 'playing' && !buzzedPlayer && (
-              <button 
-                className={`buzz-btn ${canBuzz ? 'active' : ''}`}
+              <button
+                className={`buzz-btn ${canBuzz && !isBuzzingBlocked ? 'active' : 'blocked'}`}
                 onClick={handleBuzz}
-                disabled={!canBuzz}
+                disabled={!canBuzz || isBuzzingBlocked}
               >
-                🖐 Нажми первым!
+                {isBuzzingBlocked ? '⏳ Подождите...' : '🖐 Нажми первым!'}
               </button>
             )}
 
@@ -661,14 +692,12 @@ function App() {
                     <span>❌ Неправильно!</span>
                   )}
                 </div>
-                {currentMpQuestion && !answerResult.correct && (
-                  <div className="correct-answer">
-                    Правильный ответ: <strong>{currentMpQuestion.options[answerResult.correctAnswer!]}</strong>
-                  </div>
-                )}
-                <button className="next-btn" onClick={handleNextQuestion}>
-                  ➡️ Далее
-                </button>
+                <div className="correct-answer-display">
+                  Правильный ответ: <strong>{currentMpQuestion?.options[currentMpQuestion.correctAnswer]}</strong>
+                </div>
+                <div className="auto-next-timer">
+                  Следующий вопрос через: <span className="timer-count">{autoNextTimer}</span>
+                </div>
               </div>
             )}
 

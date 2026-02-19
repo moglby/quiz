@@ -707,6 +707,12 @@ body {
   transform: scale(1);
 }
 
+.buzz-btn.blocked {
+  background: rgba(255, 255, 255, 0.1);
+  cursor: not-allowed;
+  animation: none;
+}
+
 .buzz-btn:active {
   transform: scale(0.95);
 }
@@ -841,6 +847,33 @@ body {
 
 .correct-answer strong {
   color: #4ecdc4;
+  font-size: 1.4rem;
+}
+
+.correct-answer-display {
+  font-size: 1.2rem;
+  color: #a0a0a0;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(78, 205, 196, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+.correct-answer-display strong {
+  color: #4ecdc4;
+  font-size: 1.4rem;
+}
+
+.auto-next-timer {
+  font-size: 1.1rem;
+  color: #a0a0a0;
+  margin-top: 15px;
+}
+
+.auto-next-timer .timer-count {
+  color: #667eea;
+  font-weight: bold;
   font-size: 1.4rem;
 }
 

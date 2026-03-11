@@ -159,12 +159,15 @@ io.on('connection', (socket) => {
   });
 
   // Начало игры
-  socket.on('startGame', (questions: any[]) => {
+  socket.on('startGame', (data: { questions: any[]; count: number }) => {
     const room = findPlayerRoom(socket.id);
     if (!room) return;
 
     const player = room.players.get(socket.id);
     if (!player?.isHost) return;
+
+    const questions = data.questions;
+    const count = data.count;
 
     room.questions = questions;
     room.currentQuestionIndex = 0;
@@ -173,6 +176,7 @@ io.on('connection', (socket) => {
     io.to(room.id).emit('gameStarted', {
       questions: room.questions,
       category: room.category,
+      count: count,
     });
 
     sendQuestion(room);
@@ -203,7 +207,7 @@ io.on('connection', (socket) => {
             currentRoom.currentPlayerTurn = null;
             currentRoom.buzzedPlayers = [];
           }
-        }, 15000);
+        }, 10000);
       } else {
         io.to(room.id).emit('playerBuzzed', { playerId: socket.id, playerName: player.name });
       }
@@ -223,17 +227,29 @@ io.on('connection', (socket) => {
 
     if (isCorrect) {
       player.score += 10;
+      // Отправляем результат СРАЗУ всем игрокам
       io.to(room.id).emit('answerCorrect', { playerId: socket.id, playerName: player.name });
     } else {
+      // Отправляем результат СРАЗУ всем игрокам
       io.to(room.id).emit('answerWrong', { playerId: socket.id, playerName: player.name, correctAnswer: currentQuestion.correctAnswer });
     }
 
     io.to(room.id).emit('playersUpdate', Array.from(room.players.values()));
 
-    // Автоматический переход к следующему вопросу через 4 секунды
-    setTimeout(() => {
-      nextQuestion(room);
-    }, 4000);
+    // Проверяем это ли последний вопрос
+    const isLastQuestion = room.currentQuestionIndex >= room.questions.length - 1;
+    
+    if (isLastQuestion) {
+      // Это последний вопрос - переходим к итогам через 4 секунды
+      setTimeout(() => {
+        endGame(room);
+      }, 4000);
+    } else {
+      // Не последний вопрос - переходим к следующему
+      setTimeout(() => {
+        nextQuestion(room);
+      }, 4000);
+    }
   });
 
   // Переход к следующему вопросу
@@ -257,6 +273,14 @@ io.on('connection', (socket) => {
     setTimeout(() => {
       nextQuestion(room);
     }, 4000);
+  });
+
+  // Конец игры
+  socket.on('gameOver', () => {
+    const room = findPlayerRoom(socket.id);
+    if (!room) return;
+    
+    endGame(room);
   });
 
   // Выход из комнаты
@@ -325,14 +349,22 @@ function sendQuestion(room: Room) {
 // Переход к следующему вопросу
 function nextQuestion(room: Room) {
   room.currentQuestionIndex++;
-  sendQuestion(room);
+  
+  // Проверяем, есть ли ещё вопросы
+  if (room.currentQuestionIndex >= room.questions.length) {
+    endGame(room);
+  } else {
+    sendQuestion(room);
+  }
 }
 
 // Конец игры
 function endGame(room: Room) {
   room.gameState = 'finished';
   const players = Array.from(room.players.values()).sort((a, b) => b.score - a.score);
+  // Отправляем итоги СРАЗУ
   io.to(room.id).emit('gameOver', { results: players });
+  console.log(`Game ended in room ${room.id}`);
 }
 
 // Обработка всех остальных запросов

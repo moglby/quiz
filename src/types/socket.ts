@@ -24,7 +24,7 @@ export interface ServerToClientEvents {
   playersUpdate: (players: Player[]) => void;
   allPlayersReady: () => void;
   categorySelected: (category: string) => void;
-  gameStarted: (data: { questions: Question[]; category: string | null }) => void;
+  gameStarted: (data: { questions: Question[]; category: string | null; count?: number }) => void;
   newQuestion: (data: { question: Question; questionNumber: number; totalQuestions: number }) => void;
   playerBuzzed: (data: { playerId: string; playerName: string }) => void;
   answerCorrect: (data: { playerId: string; playerName: string }) => void;
@@ -41,9 +41,10 @@ export interface ClientToServerEvents {
   joinRoom: (data: { roomCode: string; playerName: string }) => void;
   toggleReady: () => void;
   selectCategory: (category: string) => void;
-  startGame: (questions: Question[]) => void;
+  startGame: (data: { questions: Question[]; count: number }) => void;
   buzz: () => void;
   submitAnswer: (answerIndex: number) => void;
   skipAnswer: () => void;
+  nextQuestion: () => void;
   leaveRoom: () => void;
 }

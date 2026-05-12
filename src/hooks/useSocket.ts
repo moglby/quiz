@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { ServerToClientEvents, ClientToServerEvents } from '../types/socket';
 
@@ -7,7 +7,6 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
 export const useSocket = () => {
-  const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
@@ -34,14 +33,12 @@ export const useSocket = () => {
       });
     }
 
-    socketRef.current = socket;
-
     return () => {
       // Не отключаемся при размонтировании, чтобы сохранить соединение
     };
   }, []);
 
-  return { socket: socketRef.current, isConnected };
+  return { socket, isConnected };
 };
 
 export const getSocket = () => socket;

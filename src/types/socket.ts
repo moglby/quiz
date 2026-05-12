@@ -27,9 +27,9 @@ export interface ServerToClientEvents {
   gameStarted: (data: { questions: Question[]; category: string | null; count?: number }) => void;
   newQuestion: (data: { question: Question; questionNumber: number; totalQuestions: number }) => void;
   playerBuzzed: (data: { playerId: string; playerName: string }) => void;
-  answerCorrect: (data: { playerId: string; playerName: string }) => void;
+  answerCorrect: (data: { playerId: string; playerName: string; correctAnswer: number }) => void;
   answerWrong: (data: { playerId: string; playerName: string; correctAnswer: number }) => void;
-  answerSkipped: () => void;
+  answerSkipped: (data: { playerId: string; playerName: string; correctAnswer: number }) => void;
   timeUpForAnswer: () => void;
   gameOver: (data: { results: Player[] }) => void;
   newHost: (playerId: string) => void;

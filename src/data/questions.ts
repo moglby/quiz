@@ -9,14 +9,7 @@ export interface Question {
 }
 
 export const questions: Question[] = [
-  // Programming - 40 вопросов
-  {
-    id: 1,
-    question: 'Какой язык программирования используется для разработки в React?',
-    options: ['Python', 'JavaScript', 'C++', 'Ruby'],
-    correctAnswer: 1,
-    category: 'programming',
-  },
+  // Programming
   {
     id: 2,
     question: 'Что означает аббревиатура HTML?',
@@ -244,7 +237,7 @@ export const questions: Question[] = [
   },
   {
     id: 27,
-    question: 'Какой тег используется для подключения JavaScript файла в HTML?',
+    question: 'Какой HTML-тег используется для подключения внешнего файла с кодом?',
     options: ['<js>', '<script>', '<javascript>', '<code>'],
     correctAnswer: 1,
     category: 'programming',
@@ -578,7 +571,7 @@ export const questions: Question[] = [
   {
     id: 68,
     question: 'Какая консоль вышла раньше других?',
-    options: ['Wii U (2012)', 'PlayStation 4 (2013)', 'Xbox One (2013)', 'Nintendo Switch (2017)'],
+    options: ['Wii U', 'PlayStation 4', 'Xbox One', 'Nintendo Switch'],
     correctAnswer: 0,
     category: 'games',
   },
@@ -587,13 +580,6 @@ export const questions: Question[] = [
     question: 'Кто создал серию Final Fantasy?',
     options: ['Hideo Kojima', 'Hironobu Sakaguchi', 'Shigeru Miyamoto', 'Yuji Horii'],
     correctAnswer: 1,
-    category: 'games',
-  },
-  {
-    id: 70,
-    question: 'В какой игре есть режим с зомби и персонажем Richtofen?',
-    options: ['Call of Duty', 'Dead by Daylight', 'Resident Evil', 'Silent Hill'],
-    correctAnswer: 0,
     category: 'games',
   },
   {
@@ -611,13 +597,6 @@ export const questions: Question[] = [
     category: 'games',
   },
   {
-    id: 73,
-    question: 'В какой серии игр нужно ловить существ по имени Pal?',
-    options: ['Palworld', 'Pokemon', 'Temtem', 'Nexomon'],
-    correctAnswer: 0,
-    category: 'games',
-  },
-  {
     id: 74,
     question: 'Какой герой в Dota 2 может становиться невидимым?',
     options: ['Riki', 'Axe', 'Crystal Maiden', 'Sniper'],
@@ -626,7 +605,7 @@ export const questions: Question[] = [
   },
   {
     id: 75,
-    question: 'Как называется консоль Nintendo, выпущенная в 2017 году?',
+    question: 'Как называется консоль, выпущенная в 2017 году?',
     options: ['Wii U', 'Nintendo Switch', '3DS', 'GameCube'],
     correctAnswer: 1,
     category: 'games',
@@ -676,13 +655,6 @@ export const questions: Question[] = [
       'Режим тренировки',
     ],
     correctAnswer: 0,
-    category: 'games',
-  },
-  {
-    id: 82,
-    question: 'Какая компания владеет студией Blizzard?',
-    options: ['Microsoft', 'Sony', 'Activision', 'Tencent'],
-    correctAnswer: 2,
     category: 'games',
   },
   {
@@ -890,13 +862,6 @@ export const questions: Question[] = [
     category: 'math',
   },
   {
-    id: 112,
-    question: 'Какое число является простым?',
-    options: ['27', '29', '33', '35'],
-    correctAnswer: 1,
-    category: 'math',
-  },
-  {
     id: 113,
     question: 'Сколько градусов в развёрнутом угле?',
     options: ['90°', '180°', '270°', '360°'],
@@ -933,9 +898,9 @@ export const questions: Question[] = [
   },
   {
     id: 118,
-    question: 'Какое число является простым?',
-    options: ['51', '53', '57', '63'],
-    correctAnswer: 1,
+    question: 'Какое число является простым числом между 40 и 50?',
+    options: ['42', '45', '47', '49'],
+    correctAnswer: 2,
     category: 'math',
   },
   {
@@ -987,6 +952,41 @@ export const questions: Question[] = [
     correctAnswer: 2,
     category: 'math',
   },
+  {
+    id: 306,
+    question: 'Чему равен периметр треугольника со сторонами 3, 4 и 5?',
+    options: ['10', '12', '14', '15'],
+    correctAnswer: 1,
+    category: 'math',
+  },
+  {
+    id: 307,
+    question: 'Сколько будет 3⁴ (3 в степени 4)?',
+    options: ['27', '64', '81', '243'],
+    correctAnswer: 2,
+    category: 'math',
+  },
+  {
+    id: 308,
+    question: 'Какое число является средним арифметическим чисел 10, 20 и 30?',
+    options: ['15', '20', '25', '30'],
+    correctAnswer: 1,
+    category: 'math',
+  },
+  {
+    id: 309,
+    question: 'Чему равна площадь треугольника с основанием 10 см и высотой 6 см?',
+    options: ['30 см²', '60 см²', '16 см²', '120 см²'],
+    correctAnswer: 0,
+    category: 'math',
+  },
+  {
+    id: 314,
+    question: 'Чему равен объём куба с ребром 5 см?',
+    options: ['25 см³', '75 см³', '125 см³', '150 см³'],
+    correctAnswer: 2,
+    category: 'math',
+  },
   // Movies - 45 вопросов
   {
     id: 126,
@@ -1030,7 +1030,7 @@ export const questions: Question[] = [
   },
   {
     id: 131,
-    question: 'Как зовут главного героя фильма "Forrest Gump"?',
+    question: 'Как зовут главного героя в фильме с Томом Хэнксом о простом человеке?',
     options: ['Forrest Gump', 'Tom Hanks', 'Bubba', 'Lieutenant Dan'],
     correctAnswer: 0,
     category: 'movies',
@@ -1189,7 +1189,7 @@ export const questions: Question[] = [
   },
   {
     id: 153,
-    question: 'В каком фильме Брэд Питт и Эдвард Нортон играют в бойцовском клубе?',
+    question: 'В каком фильме вместе играли Брэд Питт и Эдвард Нортон?',
     options: ['Se7en', 'Fight Club', 'Ocean\'s Eleven', 'Troy'],
     correctAnswer: 1,
     category: 'movies',
@@ -1276,13 +1276,6 @@ export const questions: Question[] = [
     question: 'Кто озвучил Симбу в фильме "The Lion King" (2019)?',
     options: ['Donald Glover', 'Beyoncé', 'James Earl Jones', 'Chiwetel Ejiofor'],
     correctAnswer: 0,
-    category: 'movies',
-  },
-  {
-    id: 166,
-    question: 'В каком году вышел первый фильм Marvel?',
-    options: ['2006', '2008', '2010', '2012'],
-    correctAnswer: 1,
     category: 'movies',
   },
   {
@@ -1490,13 +1483,6 @@ export const questions: Question[] = [
     category: 'facts',
   },
   {
-    id: 196,
-    question: 'Какая страна подарила США Статую Свободы?',
-    options: ['Великобритания', 'Германия', 'Франция', 'Испания'],
-    correctAnswer: 2,
-    category: 'facts',
-  },
-  {
     id: 197,
     question: 'Сколько игроков в футбольной команде на поле?',
     options: ['9', '10', '11', '12'],
@@ -1547,8 +1533,8 @@ export const questions: Question[] = [
   },
   {
     id: 204,
-    question: 'Какой витамин вырабатывается на солнце?',
-    options: ['Витамин A', 'Витамин B', 'Витамин C', 'Витамин D'],
+    question: 'Какой витамин вырабатывается при воздействии солнечного света на кожу?',
+    options: ['A', 'B', 'C', 'D'],
     correctAnswer: 3,
     category: 'facts',
   },
@@ -1615,8 +1601,8 @@ export const questions: Question[] = [
   },
   {
     id: 213,
-    question: 'Сколько литров крови в теле взрослого человека?',
-    options: ['2-3 литра', '4-5 литров', '6-7 литров', '8-9 литров'],
+    question: 'Сколько крови в теле взрослого человека?',
+    options: ['2-3 л', '4-5 л', '6-7 л', '8-9 л'],
     correctAnswer: 1,
     category: 'facts',
   },
@@ -1657,13 +1643,6 @@ export const questions: Question[] = [
     category: 'general',
   },
   {
-    id: 219,
-    question: 'Сколько цветов в радуге?',
-    options: ['5', '6', '7', '8'],
-    correctAnswer: 2,
-    category: 'general',
-  },
-  {
     id: 220,
     question: 'Какое животное изображено на логотипе WWF?',
     options: ['Тигр', 'Панда', 'Слон', 'Белый медведь'],
@@ -1685,24 +1664,10 @@ export const questions: Question[] = [
     category: 'general',
   },
   {
-    id: 223,
-    question: 'Сколько ног у паука?',
-    options: ['6', '8', '10', '12'],
-    correctAnswer: 1,
-    category: 'general',
-  },
-  {
     id: 224,
     question: 'Какой газ мы выдыхаем?',
     options: ['Кислород', 'Азот', 'Углекислый газ', 'Водород'],
     correctAnswer: 2,
-    category: 'general',
-  },
-  {
-    id: 225,
-    question: 'Сколько будет 5 × 5?',
-    options: ['20', '25', '30', '35'],
-    correctAnswer: 1,
     category: 'general',
   },
   {
@@ -1713,24 +1678,10 @@ export const questions: Question[] = [
     category: 'general',
   },
   {
-    id: 227,
-    question: 'Сколько граней у куба?',
-    options: ['4', '6', '8', '12'],
-    correctAnswer: 1,
-    category: 'general',
-  },
-  {
     id: 228,
     question: 'Какой напиток делают из кофе?',
     options: ['Чай', 'Какао', 'Эспрессо', 'Сок'],
     correctAnswer: 2,
-    category: 'general',
-  },
-  {
-    id: 229,
-    question: 'Сколько будет 100 - 50?',
-    options: ['40', '50', '60', '70'],
-    correctAnswer: 1,
     category: 'general',
   },
   {
@@ -1915,6 +1866,34 @@ export const questions: Question[] = [
     correctAnswer: 2,
     category: 'general',
   },
+  {
+    id: 310,
+    question: 'Какой элемент периодической таблицы обозначается символом Fe?',
+    options: ['Фтор', 'Железо', 'Франций', 'Фосфор'],
+    correctAnswer: 1,
+    category: 'general',
+  },
+  {
+    id: 311,
+    question: 'В какой стране находится Мачу-Пикчу?',
+    options: ['Мексика', 'Колумбия', 'Перу', 'Боливия'],
+    correctAnswer: 2,
+    category: 'general',
+  },
+  {
+    id: 312,
+    question: 'Какой инструмент используется для измерения землетрясений?',
+    options: ['Барометр', 'Термометр', 'Сейсмограф', 'Анемометр'],
+    correctAnswer: 2,
+    category: 'general',
+  },
+  {
+    id: 313,
+    question: 'Кто написал роман «Преступление и наказание»?',
+    options: ['Толстой', 'Достоевский', 'Чехов', 'Гоголь'],
+    correctAnswer: 1,
+    category: 'general',
+  },
   // Сложные вопросы (Hard) - 50 вопросов
   {
     id: 256,
@@ -2068,13 +2047,6 @@ export const questions: Question[] = [
     options: ['250K', '500K', '1M', '2M'],
     correctAnswer: 2,
     category: 'games',
-  },
-  {
-    id: 275,
-    question: 'Кто режиссёр фильма "Blade Runner 2049"?',
-    options: ['Ridley Scott', 'Denis Villeneuve', 'Christopher Nolan', 'Alex Garland'],
-    correctAnswer: 1,
-    category: 'movies',
   },
   {
     id: 276,
@@ -2247,13 +2219,6 @@ export const questions: Question[] = [
     question: 'Кто открыл пенициллин?',
     options: ['Marie Curie', 'Alexander Fleming', 'Louis Pasteur', 'Joseph Lister'],
     correctAnswer: 1,
-    category: 'general',
-  },
-  {
-    id: 300,
-    question: 'Какая страна подарила США Статую Свободы?',
-    options: ['Испания', 'Португалия', 'Франция', 'Великобритания'],
-    correctAnswer: 2,
     category: 'general',
   },
   {
